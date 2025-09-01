@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0" />
+  <title>Stripe E-Commerce</title>
+  <script src="https://js.stripe.com/v3/"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg1:#6a85f1; --bg2:#8b5cf6; --card:#ffffff; --txt:#1f2937; --muted:#6b7280;
+      --brand:#6d28d9; --brand2:#8b5cf6; --success:#10b981; --danger:#ef4444;
+    }
+    *{box-sizing:border-box} html,body{height:100%}
+    body{
+      margin:0; font-family:"Inter",system-ui,Segoe UI,Roboto,Arial;
+      background: radial-gradient(1200px 600px at 10% -10%, #9eb4ff33, transparent) ,
+                  linear-gradient(135deg,var(--bg1),var(--bg2));
+      color:#fff;
+      padding:24px;
+    }
+    .container{max-width:1200px;margin:0 auto}
+    .header{display:flex;align-items:center;gap:16px;margin-bottom:28px}
+    .logo{
+      width:56px;height:56px;border-radius:14px;background:rgba(255,255,255,.15);
+      display:grid;place-items:center;backdrop-filter: blur(6px); box-shadow:0 8px 30px #0002
+    }
+    .title h1{margin:0;font-size:40px;line-height:1.1;text-shadow:0 3px 10px #0002}
+    .title p{margin:6px 0 0;opacity:.9}
+
+    .grid{
+      display:grid;gap:28px;
+      grid-template-columns: repeat(auto-fit,minmax(280px,1fr));
+    }
+    .card{
+      background:var(--card); color:var(--txt); border-radius:18px; padding:20px;
+      box-shadow:0 20px 40px rgba(0,0,0,.15); position:relative; overflow:hidden;
+      transition: transform .25s ease, box-shadow .25s ease;
+    }
+    .card:hover{ transform: translateY(-6px); box-shadow:0 28px 60px rgba(0,0,0,.2)}
+    .badge{
+      position:absolute; top:12px; left:12px; font-weight:700; font-size:12px;
+      background: linear-gradient(45deg,#e0e7ff,#f5f3ff); color:#4f46e5;
+      padding:4px 10px;border-radius:999px
+    }
+    .product-img{
+      width:100%; height:220px; border-radius:14px; object-fit:cover; background:#eef;
+      margin-bottom:14px; display:block;
+    }
+    .name{font-size:22px;font-weight:800;margin:0 0 6px}
+    .desc{color:var(--muted);margin:0 0 12px;min-height:42px}
+    .price{font-size:28px;font-weight:800;color:#6d28d9;margin:0 0 14px}
+    .btn{
+      width:100%; border:0; cursor:pointer; color:#fff; font-weight:700; font-size:16px;
+      padding:12px 16px; border-radius:12px;
+      background: linear-gradient(45deg,var(--brand),var(--brand2));
+      box-shadow:0 10px 25px #7c3aed55; transition: transform .2s ease
+    }
+    .btn:hover{ transform: translateY(-1px) scale(1.01) }
+    .btn:disabled{opacity:.6;cursor:not-allowed; transform:none}
+
+    /* Modal */
+    .modal{display:none; position:fixed; inset:0; background:rgba(0,0,0,.6); z-index:50}
+    .modal-content{
+      position:absolute; left:50%; top:50%; transform:translate(-50%,-50%);
+      width:min(520px,92vw); background:#fff; color:var(--txt); border-radius:16px;
+      box-shadow:0 30px 80px rgba(0,0,0,.35); padding:22px 22px 18px;
+    }
+    .modal h2{margin:0 0 6px;font-size:22px}
+    .sub{margin:0 0 10px;color:var(--muted)}
+    .close{position:absolute; right:14px; top:10px; font-size:28px; color:#9ca3af; cursor:pointer}
+    .row{display:grid; grid-template-columns:1fr 1fr; gap:14px}
+    .form-group{margin:10px 0}
+    label{font-weight:700; font-size:13px; color:#374151; margin-bottom:6px; display:block}
+    input[type="text"], input[type="email"]{
+      width:100%; padding:12px 14px; border-radius:12px; border:2px solid #e5e7eb;
+      outline:none; font-size:15px;
+    }
+    input:focus{ border-color:#a78bfa }
+    .stripe-host{ border:2px solid #e5e7eb; border-radius:12px; padding:12px; }
+    .stripe-host.error{ border-color:var(--danger) }
+    .help{font-size:12px;color:#6b7280;margin-top:6px}
+    .pay{margin-top:12px}
+    .success{display:none;margin-top:12px;background:#ecfdf5;color:#065f46;padding:12px;border-radius:10px;text-align:center}
+    .error{display:none;margin-top:12px;background:#fef2f2;color:#991b1b;padding:12px;border-radius:10px;text-align:center}
+
+    /* skeleton/loading */
+    .skeleton{height:220px;border-radius:14px;background:linear-gradient(90deg,#eee,#f5f5f5,#eee);background-size:200% 100%;animation:sh 1.2s infinite}
+    @keyframes sh{to{background-position:-200% 0}}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="logo">🛍️</div>
+      <div class="title">
+        <h1>Stripe E-Commerce</h1>
+        <p>Secure payments with Stripe integration</p>
+      </div>
+    </div>
+
+    <div id="productsGrid" class="grid">
+      <!-- JS will render cards -->
+    </div>
+  </div>
+
+ 
+  <div class="modal" id="paymentModal" aria-hidden="true">
+    <div class="modal-content" role="dialog" aria-modal="true">
+      <span class="close" onclick="closeModal()" aria-label="Close">&times;</span>
+      <h2>Complete your purchase</h2>
+      <p class="sub">Enter your details and card information.</p>
+
+      <form id="paymentForm" novalidate>
+        <div class="row">
+          <div class="form-group">
+            <label for="customerName">Full name</label>
+            <input type="text" id="customerName" placeholder="e.g. Ahsan Ali" required />
+          </div>
+          <div class="form-group">
+            <label for="customerEmail">Email</label>
+            <input type="email" id="customerEmail" placeholder="you@example.com" required />
+          </div>
+        </div>
+
+       
+        <div class="form-group">
+          <label>Card number</label>
+          <div id="card-number" class="stripe-host"></div>
+          <div class="help">Use Stripe test card 4242 4242 4242 4242</div>
+        </div>
+        <div class="row">
+          <div class="form-group">
+            <label>Expiry (MM/YY)</label>
+            <div id="card-expiry" class="stripe-host"></div>
+          </div>
+          <div class="form-group">
+            <label>CVC</label>
+            <div id="card-cvc" class="stripe-host"></div>
+          </div>
+        </div>
+
+        <div id="card-errors" class="error"></div>
+        <div id="successMessage" class="success"></div>
+
+        <button type="submit" id="payButton" class="btn pay">Pay Now</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="/script.js"></script>
+</body>
+</html>
